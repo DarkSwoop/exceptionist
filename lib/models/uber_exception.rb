@@ -148,9 +148,23 @@ class UberException
 
   def last_thirty_days
     thirty_days_ago = Time.now - (60 * 60 * 24 * 30)
-    groups = occurrences.select { |o| o.occurred_at >= thirty_days_ago }.group_by { |o| Time.mktime(o.occurred_at.year, o.occurred_at.month, o.occurred_at.day) }
-    groups = groups.map { |group| [group[0], group[1].size] }
-    groups.sort_by { |g| g.first }
+    
+    groups = {}
+    
+    occurences_bulk_walk(:reverse => true) do |list|
+      older = false
+      
+      list.reverse.each do |o|
+        break if older = o.occured_at < thirty_days_ago
+        group = Time.mktime(o.occurred_at.year, o.occurred_at.month, o.occurred_at.day)
+        groups[group] ||= 0
+        groups[group]  += 1
+      end
+      
+      older
+    end
+    
+    groups.to_a.sort_by { |g| g.first }
   end
 
   def ==(other)
@@ -162,6 +176,32 @@ class UberException
   end
 
 private
+
+  def occurences_bulk_walk(options = {}, &block)
+    size    = options[:size] || 100
+    reverse = options[:reverse] || false
+    stop    = options[:stop]
+    
+    unless reverse
+      current = 0
+      total   = occurrences_count
+      
+      while current < total - 1
+        list = occurrences_list(current, [total, current + size].min - 1)
+        break if yield(list)
+        current += size
+      end
+    else
+      current = occurrences_count
+      
+      while current > 0
+        list = occurrences_list([0, current - size].max, current - 1)
+        yield list
+        stop.call(list, current) if stop
+        current -= size
+      end
+    end
+  end
 
   def self.redis
     Exceptionist.redis
