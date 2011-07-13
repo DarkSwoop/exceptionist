@@ -151,11 +151,11 @@ class UberException
     
     groups = {}
     
-    occurences_bulk_walk(:reverse => true) do |list|
+    occurrences_bulk_walk(:reverse => true) do |list|
       older = false
       
       list.reverse.each do |o|
-        break if older = o.occured_at < thirty_days_ago
+        break if older = o.occurred_at < thirty_days_ago
         group = Time.mktime(o.occurred_at.year, o.occurred_at.month, o.occurred_at.day)
         groups[group] ||= 0
         groups[group]  += 1
@@ -177,7 +177,7 @@ class UberException
 
 private
 
-  def occurences_bulk_walk(options = {}, &block)
+  def occurrences_bulk_walk(options = {}, &block)
     size    = options[:size] || 100
     reverse = options[:reverse] || false
     stop    = options[:stop]
@@ -188,7 +188,7 @@ private
       
       while current < total - 1
         list = occurrences_list(current, [total, current + size].min - 1)
-        break if yield(list)
+        break if yield(Occurrence.find_all(list))
         current += size
       end
     else
@@ -196,8 +196,7 @@ private
       
       while current > 0
         list = occurrences_list([0, current - size].max, current - 1)
-        yield list
-        stop.call(list, current) if stop
+        break if yield(Occurrence.find_all(list))
         current -= size
       end
     end
