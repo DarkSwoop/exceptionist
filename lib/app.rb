@@ -30,7 +30,16 @@ class ExceptionistApp < Sinatra::Base
     @title = "Latest Exceptions for #{@current_project.name}"
     erb :index
   end
-
+  
+  get '/projects/:project/latest.json' do
+    @projects = Project.all
+    @current_project = Project.new(params[:project])
+    @start = params[:start] ? params[:start].to_i : 0
+    @filter = params[:filter] if params[:filter] != ''
+    @uber_exceptions = @current_project.latest_exceptions(@filter, @start)
+    Yajl::Encoder.encode(@uber_exceptions.map{|e| {:title => e.title, :last_occurred_at => e.last_occurred_at, :url => e.url}})
+  end
+  
   get '/projects/:project/new_on/:day' do
     @day = Time.parse(params[:day])
     @current_project = Project.new(params[:project])
